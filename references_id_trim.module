@@ -1,0 +1,39 @@
+<?php
+
+/**
+ * @file
+ * Removes [*id] from autocomplete references fields.
+ */
+
+/**
+ * Implements hook_menu_alter().
+ */
+function references_id_trim_menu_alter(&$items) {
+  $items['node_reference/autocomplete/%/%/%']['page callback'] = 'references_id_trim_node_reference_autocomplete';
+}
+
+/**
+ * Menu callback for the autocomplete results.
+ */
+function references_id_trim_node_reference_autocomplete($entity_type, $bundle, $field_name, $string = '') {
+  $field = field_info_field($field_name);
+  $instance = field_info_instance($entity_type, $field_name, $bundle);
+
+  $options = array(
+    'string' => $string,
+    'match' => $instance['widget']['settings']['autocomplete_match'],
+    'limit' => 10,
+  );
+  $references = node_reference_potential_references($field, $options);
+
+  $matches = array();
+  foreach ($references as $id => $row) {
+    // Markup is fine in autocompletion results (might happen when rendered
+    // through Views) but we want to remove hyperlinks.
+    $suggestion = preg_replace('/<a href="([^<]*)">([^<]*)<\/a>/', '$2', $row['rendered']);
+    // Add a class wrapper for a few required CSS overrides.
+    $matches[$row['title']] = '<div class="reference-autocomplete">' . $suggestion . '</div>';
+  }
+
+  drupal_json_output($matches);
+}

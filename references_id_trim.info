@@ -1,0 +1,3 @@
+name = References ID Trim
+description = Removes [*id] from autocomplete references fields.
+core = 7.x
