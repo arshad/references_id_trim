@@ -10,13 +10,13 @@
  */
 function references_id_trim_menu_alter(&$items) {
   $items['node_reference/autocomplete/%/%/%']['page callback'] = 'references_id_trim_node_reference_autocomplete';
+  $items['user_reference/autocomplete/%/%/%']['page callback'] = 'references_id_trim_user_reference_autocomplete';
 }
 
 /**
  * Menu callback for the autocomplete results.
  *
- * This duplicates the callback in node_references.module
- * 
+ * This duplicates the callback in node_reference.module
  * @see node_reference_autocomplete
  */
 function references_id_trim_node_reference_autocomplete($entity_type, $bundle, $field_name, $string = '') {
@@ -39,5 +39,34 @@ function references_id_trim_node_reference_autocomplete($entity_type, $bundle, $
     $matches[$row['title']] = '<div class="reference-autocomplete">' . $suggestion . '</div>';
   }
 
+  drupal_json_output($matches);
+}
+
+/**
+ * Menu callback; Retrieve a pipe delimited string of autocomplete suggestions for existing users
+ *
+ * This duplicates the callback in user_reference.module
+ * @see user_reference_autocomplete
+ */
+function references_id_trim_user_reference_autocomplete($entity_type, $bundle, $field_name, $string = '') {
+  $field = field_info_field($field_name);
+  $instance = field_info_instance($entity_type, $field_name, $bundle);
+
+  $options = array(
+    'string' => $string,
+    'match' => $instance['widget']['settings']['autocomplete_match'],
+    'limit' => 10,
+  );
+  $references = user_reference_potential_references($field, $options);
+
+  $matches = array();
+  foreach ($references as $id => $row) {
+    // Markup is fine in autocompletion results (might happen when rendered
+    // through Views) but we want to remove hyperlinks.
+    $suggestion = preg_replace('/<a href="([^<]*)">([^<]*)<\/a>/', '$2', $row['rendered']);
+    // Remove link tags Add a class wrapper for a few required CSS overrides.
+    //$matches[$row['title'] . " [uid:$id]"] = '<div class="reference-autocomplete">' . $suggestion . '</div>';
+    $matches[$row['title']] = '<div class="reference-autocomplete">' . $suggestion . '</div>';
+  }
   drupal_json_output($matches);
 }
