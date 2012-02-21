@@ -22,6 +22,9 @@ function references_id_trim_menu_alter(&$items) {
 function references_id_trim_node_reference_autocomplete($entity_type, $bundle, $field_name, $string = '') {
   $field = field_info_field($field_name);
   $instance = field_info_instance($entity_type, $field_name, $bundle);
+  $roles = array_keys(array_filter($field['settings']['references_id_trim_roles']));
+  $user_roles = array_keys($GLOBALS['user']->roles);
+  $trim = (sizeof(array_intersect($user_roles, $roles))) ? TRUE : FALSE;
 
   $options = array(
     'string' => $string,
@@ -36,7 +39,8 @@ function references_id_trim_node_reference_autocomplete($entity_type, $bundle, $
     // through Views) but we want to remove hyperlinks.
     $suggestion = preg_replace('/<a href="([^<]*)">([^<]*)<\/a>/', '$2', $row['rendered']);
     // Add a class wrapper for a few required CSS overrides.
-    $matches[$row['title']] = '<div class="reference-autocomplete">' . $suggestion . '</div>';
+    $key = ($trim) ? $row['title'] : $row['title'] . " [nid:$id]";
+    $matches[$key] = '<div class="reference-autocomplete">' . $suggestion . '</div>';  
   }
 
   drupal_json_output($matches);
@@ -51,7 +55,10 @@ function references_id_trim_node_reference_autocomplete($entity_type, $bundle, $
 function references_id_trim_user_reference_autocomplete($entity_type, $bundle, $field_name, $string = '') {
   $field = field_info_field($field_name);
   $instance = field_info_instance($entity_type, $field_name, $bundle);
-
+  $roles = array_keys(array_filter($field['settings']['references_id_trim_roles']));
+  $user_roles = array_keys($GLOBALS['user']->roles);
+  $trim = (sizeof(array_intersect($user_roles, $roles))) ? TRUE : FALSE;
+  
   $options = array(
     'string' => $string,
     'match' => $instance['widget']['settings']['autocomplete_match'],
@@ -65,8 +72,65 @@ function references_id_trim_user_reference_autocomplete($entity_type, $bundle, $
     // through Views) but we want to remove hyperlinks.
     $suggestion = preg_replace('/<a href="([^<]*)">([^<]*)<\/a>/', '$2', $row['rendered']);
     // Remove link tags Add a class wrapper for a few required CSS overrides.
-    //$matches[$row['title'] . " [uid:$id]"] = '<div class="reference-autocomplete">' . $suggestion . '</div>';
-    $matches[$row['title']] = '<div class="reference-autocomplete">' . $suggestion . '</div>';
+    $key = ($trim) ? $row['title'] : $row['title'] . " [uid:$id]";
+    $matches[$key] = '<div class="reference-autocomplete">' . $suggestion . '</div>';  
   }
   drupal_json_output($matches);
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function references_id_trim_form_field_ui_field_edit_form_alter(&$form, $form_state) {
+  $type = $form['instance']['widget']['type']['#value'];
+  
+  $fields = array(
+    'node_reference_autocomplete',
+    'user_reference_autocomplete',
+  );
+  
+  if (in_array($type, $fields)) {
+    $field = $form['#field'];
+    $instance = field_info_instance($form['instance']['entity_type']['#value'], $form['instance']['field_name']['#value'], $form['instance']['bundle']['#value']);
+    $form['field']['settings'] += references_id_trim_field_widget_settings_form($field, $instance);
+  }
+}
+
+/**
+ * Implements hook_field_widget_info_alter().
+ */
+function references_id_trim_field_widget_info_alter(&$info) {
+  $settings = array(
+    'references_id_trim_roles' => array(),
+  );
+  
+  $fields = array(
+    'node_reference_autocomplete',
+    'user_reference_autocomplete',
+  );
+  
+  foreach ($fields as $field) {
+    if (isset($info[$field]['settings'])) {
+      $info[$field]['settings'] += $settings;
+    }
+  }
+}
+
+function references_id_trim_field_widget_settings_form($field, $instance) {
+  $widget = $instance['widget'];
+  $settings = $field['settings'];
+  $form = array();
+  
+  $form['references_id_trim_roles'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Hide the [*id] for these roles'),
+    '#description' => t('The [*id] in the autocomplete results will be hidden from the roles above.'),
+    '#options' => user_roles(TRUE),
+    '#multiple' => TRUE,
+    '#default_value' => is_array($settings['references_id_trim_roles'])
+      ? array_filter($settings['references_id_trim_roles'])
+      : array(1),
+  );
+  
+  return $form;
 }
