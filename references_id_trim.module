@@ -134,3 +134,47 @@ function references_id_trim_field_widget_settings_form($field, $instance) {
   
   return $form;
 }
+
+/**
+ * Implements hook_field_widget_form_alter().
+ */
+function references_id_trim_field_widget_form_alter(&$element, &$form_state, $context) {
+  $type = $context['instance']['widget']['type'];
+  
+  $fields = array(
+    'node_reference_autocomplete',
+    'user_reference_autocomplete',
+  );
+  
+  if (in_array($type, $fields)) {
+    $settings = $context['field']['settings'];
+    if (isset($settings['references_id_trim_roles'])) {
+      $roles = array_keys(array_filter($settings['references_id_trim_roles']));
+      $user_roles = array_keys($GLOBALS['user']->roles);
+      $trim = (sizeof(array_intersect($user_roles, $roles))) ? TRUE : FALSE;
+      if ($trim) {
+        $element['uid']['#value_callback'] = 'references_id_trim_user_reference_autocomplete_value';
+      }
+    }
+  }
+}
+
+function references_id_trim_user_reference_autocomplete_value($element, $input = FALSE, $form_state) {
+  if ($input === FALSE) {
+    // We're building the displayed 'default value': expand the raw uid into
+    // "user name [uid:n]".
+    $uid = $element['#default_value'];
+    if (!empty($uid)) {
+      $q = db_select('users', 'u');
+      $q->addField('u', 'name');
+
+      $q->condition('u.uid', $uid)
+        ->range(0, 1);
+      $result = $q->execute();
+      // @todo If no result (user doesn't exist).
+      $value = $result->fetchField();
+      //$value .= ' [uid:' . $uid . ']';
+      return $value;
+    }
+  }
+}
