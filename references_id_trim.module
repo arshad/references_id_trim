@@ -142,23 +142,31 @@ function references_id_trim_field_widget_form_alter(&$element, &$form_state, $co
   $type = $context['instance']['widget']['type'];
   
   $fields = array(
-    'node_reference_autocomplete',
-    'user_reference_autocomplete',
+    'node_reference_autocomplete' => 'nid',
+    'user_reference_autocomplete' => 'uid',
   );
   
-  if (in_array($type, $fields)) {
+  if (array_key_exists($type, $fields)) {
     $settings = $context['field']['settings'];
     if (isset($settings['references_id_trim_roles'])) {
       $roles = array_keys(array_filter($settings['references_id_trim_roles']));
       $user_roles = array_keys($GLOBALS['user']->roles);
       $trim = (sizeof(array_intersect($user_roles, $roles))) ? TRUE : FALSE;
       if ($trim) {
-        $element['uid']['#value_callback'] = 'references_id_trim_user_reference_autocomplete_value';
+        $element[$fields[$type]]['#value_callback'] = 'references_id_trim_' . $type . '_value';
       }
     }
   }
 }
 
+/**
+ * Value callback for a user_reference autocomplete element.
+ *
+ * Substitute in the user name for the uid.
+ *
+ * This function duplicates the functionality of user_reference_autocomplete_value
+ * @see user_reference_autocomplete_value
+ */
 function references_id_trim_user_reference_autocomplete_value($element, $input = FALSE, $form_state) {
   if ($input === FALSE) {
     // We're building the displayed 'default value': expand the raw uid into
@@ -174,6 +182,34 @@ function references_id_trim_user_reference_autocomplete_value($element, $input =
       // @todo If no result (user doesn't exist).
       $value = $result->fetchField();
       //$value .= ' [uid:' . $uid . ']';
+      return $value;
+    }
+  }
+}
+
+/**
+ * Value callback for a node_reference autocomplete element.
+ *
+ * Replace the node nid with a node title.
+ *
+ * This function duplicates the functionality of node_reference_autocomplete_value
+ * @see node_reference_autocomplete_value
+ */
+function references_id_trim_node_reference_autocomplete_value($element, $input = FALSE, $form_state) {
+  if ($input === FALSE) {
+    // We're building the displayed 'default value': expand the raw nid into
+    // "node title [nid:n]".
+    $nid = $element['#default_value'];
+    if (!empty($nid)) {
+      $q = db_select('node', 'n');
+      $node_title_alias = $q->addField('n', 'title');
+      $q->addTag('node_access')
+        ->condition('n.nid', $nid)
+        ->range(0, 1);
+      $result = $q->execute();
+      // @todo If no result (node doesn't exist or no access).
+      $value = $result->fetchField();
+      //$value .= ' [nid:' . $nid . ']';
       return $value;
     }
   }
