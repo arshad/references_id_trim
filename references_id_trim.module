@@ -127,7 +127,7 @@ function references_id_trim_field_widget_settings_form($field, $instance) {
     '#description' => t('The [*id] in the autocomplete results will be hidden from the roles above.'),
     '#options' => user_roles(TRUE),
     '#multiple' => TRUE,
-    '#default_value' => is_array($settings['references_id_trim_roles'])
+    '#default_value' => (isset($settings['references_id_trim_roles']) && is_array($settings['references_id_trim_roles']))
       ? array_filter($settings['references_id_trim_roles'])
       : array(1),
   );
