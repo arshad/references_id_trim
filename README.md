@@ -2,8 +2,8 @@
 Removes [*id] from autocomplete references fields.
 
 ## Features
-*Works with node and user autocomplete reference fields
-*Role-based configuration
+1. Works with node and user autocomplete reference fields
+2. Role-based configuration
 
 ##Dependencies
-*References
+References
